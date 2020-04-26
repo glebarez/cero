@@ -48,14 +48,19 @@ By default, cero uses port 443 for initiating TLS connection, but you can use sp
 cero use-specific-port.com:10443 use-default-port.com
 ```
 
-And you can redefine default port with -p option:
+And you can redefine default ports with -p option:
 ```bash
-cat myTargets.txt | cero -p 8443
+cat myTargets.txt | cero -p 443,10443
 ```
 
 Port specification is even supported on CIDR ranges:
 ```bash
 cero 192.1.1.1/16:8443
+```
+
+And here is mass-scraping example for popular TLS ports across CIDR range:
+```
+cero -p 443,8443,10443,30443 192.0.0.1/20
 ```
 
 ## Output control
@@ -77,8 +82,8 @@ example.com:443 -- [www.example.org example.com example.edu example.net example.
 Usage of cero:
   -c int
         Concurrency level (default 100)
-  -p int
-        Default TLS port to use, if not specified explicitly in host address (default 443)
+  -p string
+        TLS ports to use, if not specified explicitly in host address. Use comma-separated list (default "443")
   -t int
         TLS Connection timeout in seconds (default 4)
   -v    Be verbose: 

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -29,8 +28,8 @@ func main() {
 	var concurrency int
 	flag.IntVar(&concurrency, "c", 100, "Concurrency level")
 
-	var defaultPort int
-	flag.IntVar(&defaultPort, "p", 443, "Default TLS port to use, if not specified explicitly in host address")
+	var defaultPorts string
+	flag.StringVar(&defaultPorts, "p", "443", "TLS ports to use, if not specified explicitly in host address. Use comma-separated list")
 
 	var timeout int
 	flag.IntVar(&timeout, "t", 4, "TLS Connection timeout in seconds")
@@ -40,6 +39,9 @@ func main() {
 	chanInput := make(chan string)
 	chanResult := make(chan *procResult)
 
+	// parse default port list into string slice
+	defaultPortsS := strings.Split(defaultPorts, `,`)
+
 	/* the function processes input item and feeds it into input channel */
 	processInput := func(addr string) {
 		// empty lines are skipped
@@ -48,15 +50,18 @@ func main() {
 		}
 
 		// parse port from addr, or use default port
-		var host, port string
+		var host string
+		var ports []string
+
 		hostPort := strings.SplitN(addr, `:`, 2)
 		if len(hostPort) == 1 {
+			// use ports from default list if not specified explicitly
 			host = addr
-			port = strconv.Itoa(defaultPort)
-
+			ports = defaultPortsS
 		} else {
+			// use explicitly specified port
 			host = hostPort[0]
-			port = hostPort[1]
+			ports = []string{hostPort[1]}
 		}
 
 		// expand if CIDR
@@ -66,12 +71,17 @@ func main() {
 				fmt.Fprintln(os.Stderr, err)
 				return
 			}
+			// feed IPs from CIDR
 			for _, ip := range ips {
-				chanInput <- fmt.Sprintf(`%s:%s`, ip, port)
+				for _, port := range ports {
+					chanInput <- fmt.Sprintf(`%s:%s`, ip, port)
+				}
 			}
 		} else {
 			// atomic addr
-			chanInput <- fmt.Sprintf(`%s:%s`, host, port)
+			for _, port := range ports {
+				chanInput <- fmt.Sprintf(`%s:%s`, host, port)
+			}
 		}
 	}
 
@@ -135,7 +145,7 @@ func main() {
 			processInput(addr)
 		}
 	} else {
-		// every line is of stdin considered as a host addr
+		// every line of stdin is considered as a host addr
 		sc := bufio.NewScanner(os.Stdin)
 		for sc.Scan() {
 			addr := strings.TrimSpace(sc.Text())
