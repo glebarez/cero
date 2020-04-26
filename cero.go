@@ -22,7 +22,7 @@ type procResult struct {
 }
 
 func main() {
-	/* parse arguments */
+	/* parse flags */
 	var verbose bool
 	flag.BoolVar(&verbose, "v", false, `Be verbose: Output results as 'addr -- [result list]', output errors to stderr as 'addr -- error message'`)
 
@@ -31,14 +31,16 @@ func main() {
 
 	var defaultPort int
 	flag.IntVar(&defaultPort, "p", 443, "Default TLS port to use, if not specified explicitly in host address")
+
+	var timeout int
+	flag.IntVar(&timeout, "t", 5, "TLS Connection timeout")
 	flag.Parse()
-	defaultPortStr := strconv.Itoa(defaultPort)
 
 	// channels for async communications
 	chanInput := make(chan string)
 	chanResult := make(chan *procResult)
 
-	/* processes input addr */
+	/* the function processes input item and feeds it into input channel */
 	processInput := func(addr string) {
 		// empty lines are skipped
 		if addr == "" {
@@ -50,7 +52,8 @@ func main() {
 		hostPort := strings.SplitN(addr, `:`, 2)
 		if len(hostPort) == 1 {
 			host = addr
-			port = defaultPortStr
+			port = strconv.Itoa(defaultPort)
+
 		} else {
 			host = hostPort[0]
 			port = hostPort[1]
@@ -66,28 +69,25 @@ func main() {
 			for _, ip := range ips {
 				chanInput <- fmt.Sprintf(`%s:%s`, ip, port)
 			}
-			// atomic addr
 		} else {
+			// atomic addr
 			chanInput <- fmt.Sprintf(`%s:%s`, host, port)
 		}
 	}
 
 	/* start input workers */
-	var workersWG sync.WaitGroup
+	dialer := &net.Dialer{
+		Timeout: time.Duration(timeout) * time.Second,
+	}
 
+	var workersWG sync.WaitGroup
 	for i := 0; i < concurrency; i++ {
 		workersWG.Add(1)
 
 		go func() {
 			for addr := range chanInput {
 				result := &procResult{addr: addr}
-
-				names, err := grabCert(addr)
-				if err != nil {
-					result.err = err
-				} else {
-					result.names = names
-				}
+				result.names, result.err = grabCert(addr, dialer)
 				chanResult <- result
 			}
 			workersWG.Done()
@@ -100,29 +100,35 @@ func main() {
 		close(chanResult)
 	}()
 
+	/* result printing function */
+	printResult := func(result *procResult) {
+		// in verbose mode, print all errors and results, relatively to input addr
+		if verbose {
+			if result.err != nil {
+				fmt.Fprintf(os.Stderr, "%s -- %s\n", result.addr, result.err)
+			} else {
+				fmt.Fprintf(os.Stdout, "%s -- %s\n", result.addr, result.names)
+			}
+		} else {
+			// non-verbose: just print names, one at line
+			for _, name := range result.names {
+				fmt.Fprintln(os.Stdout, name)
+			}
+		}
+	}
+
 	/* start output worker */
 	var outputWG sync.WaitGroup
 	outputWG.Add(1)
 	go func() {
 		for result := range chanResult {
-			if result.err != nil {
-				if verbose {
-					fmt.Fprintf(os.Stderr, "%s -- %s\n", result.addr, result.err)
-				}
-			} else {
-				if verbose {
-					fmt.Fprintf(os.Stdout, "%s -- %s\n", result.addr, result.names)
-				} else {
-					for _, name := range result.names {
-						fmt.Fprintln(os.Stdout, name)
-					}
-				}
-			}
+			printResult(result)
 		}
 		outputWG.Done()
 	}()
 
-	/* if non-flag arguments are specified, treat them as input hosts
+	/* decide on where to consume input from:
+	if non-flag arguments are specified, treat them as input hosts
 	otherwise, consume input from stdin */
 	if len(flag.Args()) > 0 {
 		for _, addr := range flag.Args() {
@@ -146,14 +152,9 @@ func main() {
 
 /* connects to addr and grabs certificate information.
 returns slice of domain names from grabbed certificate */
-func grabCert(addr string) ([]string, error) {
-	// dialer
-	d := &net.Dialer{
-		Timeout: time.Duration(5) * time.Second,
-	}
-
+func grabCert(addr string, dialer *net.Dialer) ([]string, error) {
 	// dial
-	conn, err := tls.DialWithDialer(d, "tcp", addr, &tls.Config{InsecureSkipVerify: true})
+	conn, err := tls.DialWithDialer(dialer, "tcp", addr, &tls.Config{InsecureSkipVerify: true})
 	if err != nil {
 		return nil, err
 	}
@@ -166,6 +167,7 @@ func grabCert(addr string) ([]string, error) {
 	names := make([]string, 0, len(cert.DNSNames)+1)
 	names = append(names, cert.Subject.CommonName)
 
+	// append all SANs, excluding one that is equal to CN (if any)
 	for _, name := range cert.DNSNames {
 		if name != cert.Subject.CommonName {
 			names = append(names, name)
@@ -180,7 +182,7 @@ func expandCIDR4(CIDR string) ([]string, error) {
 	// parse CIDR
 	_, net, err := net.ParseCIDR(CIDR)
 	if err != nil {
-		return nil, fmt.Errorf("CIDR %s : %s", CIDR, err)
+		return nil, err
 	}
 
 	// check for IPv4
@@ -201,7 +203,7 @@ func expandCIDR4(CIDR string) ([]string, error) {
 	return ips, nil
 }
 
-// converts
+/* converts Uint32 to net.IP */
 func int2IP(i uint32) net.IP {
 	return net.IP{
 		byte(i >> 24),
