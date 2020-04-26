@@ -33,7 +33,7 @@ func main() {
 	flag.IntVar(&defaultPort, "p", 443, "Default TLS port to use, if not specified explicitly in host address")
 
 	var timeout int
-	flag.IntVar(&timeout, "t", 5, "TLS Connection timeout")
+	flag.IntVar(&timeout, "t", 4, "TLS Connection timeout in seconds")
 	flag.Parse()
 
 	// channels for async communications
