@@ -60,7 +60,7 @@ cero 192.1.1.1/16:8443
 
 ## Output control
 By default, cero will only output successfully scraped domain names as simple list (to standard output), and the errors (if any)  will be suppressed<br>
-If you want see what errors were encountered, or what names came from what addresses, use the -v flag. This will format output a little differently, and also write error messages to standard error.
+If you want to see what errors were encountered, or what names came from what hosts, use the -v flag. This will format output a little differently, and also write error messages to standard error.
 ```bash
 cero -v example.com example.com:80
 example.com:80 -- tls: first record does not look like a TLS handshake
@@ -81,5 +81,7 @@ Usage of cero:
         Default TLS port to use, if not specified explicitly in host address (default 443)
   -t int
         TLS Connection timeout in seconds (default 4)
-  -v    Be verbose: Output results as 'addr -- [result list]', output errors to stderr as 'addr -- error message'
+  -v    Be verbose: 
+        Output results as 'addr -- [result list]', 
+        output errors to stderr as 'addr -- error message'
   ```
