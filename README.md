@@ -57,7 +57,7 @@ cero 192.1.1.1/16:8443
 
 And here is mass-scraping example for popular TLS ports across CIDR range:
 ```
-cero -p 443,8443,10443,30443 192.0.0.1/20
+cero -p 443,8443,10443,30443 -c 1000 192.0.0.1/20
 ```
 
 ## Output control
