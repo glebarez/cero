@@ -1,4 +1,4 @@
-![](https://img.shields.io/github/go-mod/go-version/glebarez/cero)
+![](https://img.shields.io/github/go-mod/go-version/glebarez/cero) ![](https://img.shields.io/codecov/c/github/glebarez/cero)
 
 # cero
 Cero will connect to remote hosts, and read domain names from the certificates they provided during TLS handshake. <br>
