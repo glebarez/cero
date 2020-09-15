@@ -1,4 +1,4 @@
-![](https://img.shields.io/github/go-mod/go-version/glebarez/cero) ![](https://img.shields.io/codecov/c/github/glebarez/cero)
+![](https://img.shields.io/github/go-mod/go-version/glebarez/cero) ![](https://img.shields.io/codecov/c/github/glebarez/cero) ![Publish release](https://github.com/glebarez/cero/workflows/Publish%20release/badge.svg)
 
 # cero
 Cero will connect to remote hosts, and read domain names from the certificates they provided during TLS handshake. <br>
@@ -6,6 +6,8 @@ It is not limited to only HTTPS, and will scrape certificates from any protocol 
 Cero allows flexible specification of targets, including domain names, IP addresses, and CIDR ranges, with full support for IPv6.
 
 ## Installation / Update
+- Download pre-compiled binary for your OS from [Latest release](https://github.com/glebarez/cero/releases/latest)
+- alternatively, compile from source:
 ```bash
 go get -u github.com/glebarez/cero
 ```
