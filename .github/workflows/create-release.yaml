@@ -1,0 +1,57 @@
+name: Publish release
+on:
+  push:
+    tags:
+    - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url}}
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: true
+          prerelease: false
+
+  build:
+    needs: release
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        GOOS: [linux, windows, darwin]
+        GOARCH: [amd64]
+    env:
+      GOOS: ${{ matrix.GOOS }}
+      GOARCH: ${{ matrix.GOARCH }}
+    steps:
+      - name: Set binary extension
+        if: matrix.GOOS == 'windows'
+        run: echo "::set-env name=BINARY_EXT::.exe"
+
+      - name: Set compiled binary name
+        run: |
+          echo "::set-env name=BINARY_NAME::cero-${{ matrix.GOOS }}-${{ matrix.GOARCH }}${{ env.BINARY_EXT }}"
+          echo "Binary name set to ${{ env.BINARY_NAME }}"
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build project
+        run: go build -o $BINARY_NAME
+
+      - name: Attach compiled binary to release
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.release.outputs.upload_url }}
+          asset_path: ./${{ env.BINARY_NAME }}
+          asset_name: ${{ env.BINARY_NAME }}
+          asset_content_type: application/octet-stream
