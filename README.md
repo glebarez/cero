@@ -1,3 +1,5 @@
+![](https://img.shields.io/github/go-mod/go-version/glebarez/cero)
+
 # cero
 Cero will connect to remote hosts, and read domain names from the certificates they provided during TLS handshake. <br>
 It is not limited to only HTTPS, and will scrape certificates from any protocol that works over TLS (e.g. SMTPS), just give it the right ports to connect to.<br>
