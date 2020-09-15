@@ -19,33 +19,37 @@ type procResult struct {
 	err   error
 }
 
+// run parameters (filled from CLI arguments)
+var (
+	verbose      bool
+	concurrency  int
+	defaultPorts []string
+	timeout      int
+)
+
 func main() {
-	/* parse flags */
-	var verbose bool
+	// parse CLI arguments
+	var ports string
+
 	flag.BoolVar(&verbose, "v", false, `Be verbose: Output results as 'addr -- [result list]', output errors to stderr as 'addr -- error message'`)
-
-	var concurrency int
 	flag.IntVar(&concurrency, "c", 100, "Concurrency level")
-
-	var defaultPorts string
-	flag.StringVar(&defaultPorts, "p", "443", "TLS ports to use, if not specified explicitly in host address. Use comma-separated list")
-
-	var timeout int
+	flag.StringVar(&ports, "p", "443", "TLS ports to use, if not specified explicitly in host address. Use comma-separated list")
 	flag.IntVar(&timeout, "t", 4, "TLS Connection timeout in seconds")
 	flag.Parse()
 
 	// parse default port list into string slice
-	defaultPortsS := strings.Split(defaultPorts, `,`)
+	defaultPorts = strings.Split(ports, `,`)
 
 	// channels
 	chanInput := make(chan string)
 	chanResult := make(chan *procResult)
 
-	/* start input workers */
+	// a common dialer
 	dialer := &net.Dialer{
 		Timeout: time.Duration(timeout) * time.Second,
 	}
 
+	// create and start concurrent workers
 	var workersWG sync.WaitGroup
 	for i := 0; i < concurrency; i++ {
 		workersWG.Add(1)
@@ -65,7 +69,7 @@ func main() {
 		close(chanResult)
 	}()
 
-	/* start result-processing worker */
+	// create and start result-processing worker
 	var outputWG sync.WaitGroup
 	outputWG.Add(1)
 	go func() {
@@ -87,63 +91,17 @@ func main() {
 		outputWG.Done()
 	}()
 
-	/* input item parser
-	if any errors occurred during parsing, they are pushed straight to result channel */
-	parseInput := func(input string) {
-		// initial inputs are skipped
-		input = strings.TrimSpace(input)
-		if input == "" {
-			return
-		}
-
-		// split input to host and port (if specified)
-		host, port := splitHostPort(input)
-
-		// get ports list to use
-		var ports []string
-		if port == "" {
-			// use ports from default list if not specified explicitly
-			ports = defaultPortsS
-		} else {
-			ports = []string{port}
-		}
-
-		// CIDR?
-		if isCIDR(host) {
-			// expand CIDR
-			ips, err := expandCIDR(host)
-			if err != nil {
-				chanResult <- &procResult{addr: input, err: err}
-				return
-			}
-
-			// feed IPs from CIDR to input channel
-			for ip := range ips {
-				for _, port := range ports {
-					chanInput <- net.JoinHostPort(ip, port)
-				}
-			}
-		} else {
-			// feed atomic host to input channel
-			for _, port := range ports {
-				chanInput <- net.JoinHostPort(host, port)
-			}
-		}
-	}
-
-	/* decide on where to consume input from:
-	if non-flag arguments are specified, treat them as input hosts,
-	otherwise consume input from stdin */
+	// consume output to start things moving
 	if len(flag.Args()) > 0 {
 		for _, addr := range flag.Args() {
-			parseInput(addr)
+			processInputItem(addr, chanInput, chanResult)
 		}
 	} else {
 		// every line of stdin is considered as a input
 		sc := bufio.NewScanner(os.Stdin)
 		for sc.Scan() {
 			addr := strings.TrimSpace(sc.Text())
-			parseInput(addr)
+			processInputItem(addr, chanInput, chanResult)
 		}
 	}
 
@@ -152,6 +110,50 @@ func main() {
 
 	// wait for processing to finish
 	outputWG.Wait()
+}
+
+// process input item
+// if orrors occur during parsing, they are pushed straight to result channel
+func processInputItem(input string, chanInput chan string, chanResult chan *procResult) {
+	// initial inputs are skipped
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return
+	}
+
+	// split input to host and port (if specified)
+	host, port := splitHostPort(input)
+
+	// get ports list to use
+	var ports []string
+	if port == "" {
+		// use ports from default list if not specified explicitly
+		ports = defaultPorts
+	} else {
+		ports = []string{port}
+	}
+
+	// CIDR?
+	if isCIDR(host) {
+		// expand CIDR
+		ips, err := expandCIDR(host)
+		if err != nil {
+			chanResult <- &procResult{addr: input, err: err}
+			return
+		}
+
+		// feed IPs from CIDR to input channel
+		for ip := range ips {
+			for _, port := range ports {
+				chanInput <- net.JoinHostPort(ip, port)
+			}
+		}
+	} else {
+		// feed atomic host to input channel
+		for _, port := range ports {
+			chanInput <- net.JoinHostPort(host, port)
+		}
+	}
 }
 
 /* connects to addr and grabs certificate information.
