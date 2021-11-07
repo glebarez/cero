@@ -30,6 +30,7 @@ jobs:
     env:
       GOOS: ${{ matrix.GOOS }}
       GOARCH: ${{ matrix.GOARCH }}
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
     steps:
       - name: Set binary extension
         if: matrix.GOOS == 'windows'
@@ -39,10 +40,14 @@ jobs:
         run: |
           echo "::set-env name=BINARY_NAME::cero-${{ matrix.GOOS }}-${{ matrix.GOARCH }}${{ env.BINARY_EXT }}"
           echo "Binary name set to ${{ env.BINARY_NAME }}"
+          
       - name: Checkout code
         uses: actions/checkout@v2
 
       - name: Build project
+        uses: actions/setup-go@v2
+        with:
+          go-version: '^1.17.3' 
         run: go build -o $BINARY_NAME
 
       - name: Attach compiled binary to release

@@ -1,8 +1,8 @@
 ![](https://img.shields.io/github/go-mod/go-version/glebarez/cero) ![](https://img.shields.io/codecov/c/github/glebarez/cero) ![Publish release](https://github.com/glebarez/cero/workflows/Publish%20release/badge.svg)
 
 # cero
-Cero will connect to remote hosts, and read domain names from the certificates they provided during TLS handshake. <br>
-It is not limited to only HTTPS, and will scrape certificates from any protocol that works over TLS (e.g. SMTPS), just give it the right ports to connect to.<br>
+Cero will connect to remote hosts, and read domain names from the certificates provided during TLS handshake. <br>
+It is not limited to only HTTPS, and will scrape certificates from any protocol that works over TLS (e.g. SMTPS) - just give it the right ports to connect to.<br>
 Cero allows flexible specification of targets, including domain names, IP addresses, and CIDR ranges, with full support for IPv6.
 
 ## Installation / Update
@@ -34,6 +34,10 @@ Cero is fast and concurrent, you can pipe your inputs into it. The concurrency l
 ```bash
 cat myTargets.txt | cero -c 1000
 ```
+you can define list of default ports to connect to, with **-p** option:
+```bash
+cat myTargets.txt | cero -p 443,8443
+```
 Cero will accept bare IP as input:
 ```bash
 cero 10.0.0.1
@@ -46,13 +50,9 @@ IPv6 is fully supported
 ```bash
 cero 2a00:b4c0::/102
 ```
-By default, cero uses port 443 for initiating TLS connection, but you can use specific port for every target
+you can use specific port for every target
 ```bash
-cero 10.0.0.1:8443 [2a00:b4c0::1]:8443
-```
-you can define list of default ports to connect to, with **-p** option:
-```bash
-cat myTargets.txt | cero -p 443,8443
+cero 10.0.0.1:8443 [2a00:b4c0::1]:10443
 ```
 Port specification is even supported on CIDR ranges:
 ```bash

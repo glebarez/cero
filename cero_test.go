@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -74,7 +75,10 @@ func captureOutput(f func()) string {
 	go func() {
 		var buf bytes.Buffer
 		wg.Done()
-		io.Copy(&buf, reader)
+		if _, err := io.Copy(&buf, reader); err != nil {
+			log.Fatal(err)
+		}
+
 		out <- buf.String()
 	}()
 	wg.Wait()
