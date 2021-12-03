@@ -1,4 +1,4 @@
-![](https://img.shields.io/github/go-mod/go-version/glebarez/cero) ![](https://img.shields.io/codecov/c/github/glebarez/cero) ![Publish release](https://github.com/glebarez/cero/workflows/Publish%20release/badge.svg)
+![](https://img.shields.io/github/go-mod/go-version/glebarez/cero) ![](https://img.shields.io/codecov/c/github/glebarez/cero) [![build](https://github.com/glebarez/cero/actions/workflows/create-release.yaml/badge.svg)](https://github.com/glebarez/cero/actions/workflows/create-release.yaml)
 
 # cero
 Cero will connect to remote hosts, and read domain names from the certificates provided during TLS handshake. <br>
