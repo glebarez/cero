@@ -28,6 +28,11 @@ var (
 	onlyValidDomainNames bool
 )
 
+var usage = "" +
+	`usage: cero [options] [targets]
+if [targets] not provided in commandline arguments, will read from stdin
+`
+
 func main() {
 	// parse CLI arguments
 	var ports string
@@ -37,6 +42,14 @@ func main() {
 	flag.StringVar(&ports, "p", "443", "TLS ports to use, if not specified explicitly in host address. Use comma-separated list")
 	flag.IntVar(&timeout, "t", 4, "TLS Connection timeout in seconds")
 	flag.BoolVar(&onlyValidDomainNames, "d", false, "Output only valid domain names (e.g. strip IPs, wildcard domains and gibberish)")
+
+	// set custom usage text
+	flag.Usage = func() {
+		fmt.Fprintln(os.Stderr, usage)
+		fmt.Fprintln(os.Stderr, "options:")
+		flag.PrintDefaults()
+	}
+
 	flag.Parse()
 
 	// parse default port list into string slice
