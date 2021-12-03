@@ -30,6 +30,8 @@ fr-ca.rogers.yahoo.com
 hk.rd.yahoo.com
 tw.rd.yahoo.com
 ```
+NOTE: You might want to use the **-d** option to automatically strip invalid domain names (e.g. wildcards, bare IPs and usual gibberish) to integrate this tool more smoothly into your recon pipelines.
+
 Cero is fast and concurrent, you can pipe your inputs into it. The concurrency level can be set with **-c** flag:
 ```bash
 cat myTargets.txt | cero -c 1000
@@ -89,15 +91,17 @@ Though this is not mandatory (at least for cero)<br>
 In unambiguous cases cero will correctly split the host and port, even when square brackets are not used.<br>In truly ambiguous cases, cero will parse the whole input as IPv6 address.
 
 ## Full option list
-```bash
-Usage of cero:
+```console
+usage: cero [options] [targets]
+if [targets] not provided in commandline arguments, will read from stdin
+
+options:
   -c int
         Concurrency level (default 100)
+  -d    Output only valid domain names (e.g. strip IPs, wildcard domains and gibberish)
   -p string
         TLS ports to use, if not specified explicitly in host address. Use comma-separated list (default "443")
   -t int
         TLS Connection timeout in seconds (default 4)
-  -v    Be verbose: 
-        Output results as 'addr -- [result list]', 
-        output errors to stderr as 'addr -- error message'
+  -v    Be verbose: Output results as 'addr -- [result list]', output errors to stderr as 'addr -- error message'
   ```
