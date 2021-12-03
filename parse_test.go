@@ -122,3 +122,34 @@ func Test_splitHostPort(t *testing.T) {
 		})
 	}
 }
+
+func Test_isDomainName(t *testing.T) {
+	cases := []struct {
+		host     string
+		expected bool
+	}{
+		// -- valid
+		{"test.com.ru", true},
+		{"test-1.com", true},
+		{"1.1.1.com", true},
+		{"test.com.", true}, // yes trailing dot is allowed by RFC
+
+		// -- invalid
+		{"127.0.0.1", false},
+		{"test", false},  // single level
+		{"test.", false}, // single level
+		{"test_test.com", false},
+		{".test", false},
+		{"*.test.com", false},
+		{"test-.com", false},
+		{"te!st.com", false},
+		{"!.dot.com", false},
+	}
+
+	for _, c := range cases {
+		actual := isDomainName(c.host)
+		if actual != c.expected {
+			t.Errorf("isDomainName(%s) expected to be %v", c.host, c.expected)
+		}
+	}
+}

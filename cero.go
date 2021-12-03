@@ -21,10 +21,11 @@ type procResult struct {
 
 // run parameters (filled from CLI arguments)
 var (
-	verbose      bool
-	concurrency  int
-	defaultPorts []string
-	timeout      int
+	verbose              bool
+	concurrency          int
+	defaultPorts         []string
+	timeout              int
+	onlyValidDomainNames bool
 )
 
 func main() {
@@ -35,6 +36,7 @@ func main() {
 	flag.IntVar(&concurrency, "c", 100, "Concurrency level")
 	flag.StringVar(&ports, "p", "443", "TLS ports to use, if not specified explicitly in host address. Use comma-separated list")
 	flag.IntVar(&timeout, "t", 4, "TLS Connection timeout in seconds")
+	flag.BoolVar(&onlyValidDomainNames, "d", false, "Output only valid domain names (e.g. strip IPs, wildcard domains and gibberish)")
 	flag.Parse()
 
 	// parse default port list into string slice
@@ -56,7 +58,7 @@ func main() {
 		go func() {
 			for addr := range chanInput {
 				result := &procResult{addr: addr}
-				result.names, result.err = grabCert(addr, dialer)
+				result.names, result.err = grabCert(addr, dialer, onlyValidDomainNames)
 				chanResult <- result
 			}
 			workersWG.Done()
@@ -158,7 +160,7 @@ func processInputItem(input string, chanInput chan string, chanResult chan *proc
 
 /* connects to addr and grabs certificate information.
 returns slice of domain names from grabbed certificate */
-func grabCert(addr string, dialer *net.Dialer) ([]string, error) {
+func grabCert(addr string, dialer *net.Dialer, onlyValidDomainNames bool) ([]string, error) {
 	// dial
 	conn, err := tls.DialWithDialer(dialer, "tcp", addr, &tls.Config{InsecureSkipVerify: true})
 	if err != nil {
@@ -171,12 +173,16 @@ func grabCert(addr string, dialer *net.Dialer) ([]string, error) {
 
 	// get CommonName and all SANs into a slice
 	names := make([]string, 0, len(cert.DNSNames)+1)
-	names = append(names, cert.Subject.CommonName)
+	if onlyValidDomainNames && isDomainName(cert.Subject.CommonName) || !onlyValidDomainNames {
+		names = append(names, cert.Subject.CommonName)
+	}
 
 	// append all SANs, excluding one that is equal to CN (if any)
 	for _, name := range cert.DNSNames {
 		if name != cert.Subject.CommonName {
-			names = append(names, name)
+			if onlyValidDomainNames && isDomainName(name) || !onlyValidDomainNames {
+				names = append(names, name)
+			}
 		}
 	}
 
