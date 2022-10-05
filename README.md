@@ -9,7 +9,7 @@ Cero allows flexible specification of targets, including domain names, IP addres
 - Download pre-compiled binary for your OS from [Latest release](https://github.com/glebarez/cero/releases/latest)
 - alternatively, compile from source:
 ```bash
-go get -u github.com/glebarez/cero
+go install github.com/glebarez/cero@latest
 ```
 
 ## Usage examples
